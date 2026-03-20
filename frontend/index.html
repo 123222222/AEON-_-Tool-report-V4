@@ -641,12 +641,21 @@
         </div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:-4px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:-4px;">
       <div class="form-group">
         <label>Status</label>
         <select id="status-done" class="status-field" disabled>
           <option value="Done">Done</option>
           <option value="Not Yet">Not Yet</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Alarm Level</label>
+        <select id="status-alarm-level" class="status-field" disabled>
+          <option value="">-- Chọn --</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
         </select>
       </div>
     </div>

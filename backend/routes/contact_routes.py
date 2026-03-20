@@ -59,6 +59,7 @@ def status_form():
     device      = body.get("device", "")
     pic         = body.get("pic", "")
     alarm_type  = body.get("alarm_type", "")
+    alarm_level = body.get("alarm_level", "")
     status      = body.get("status", "")
     processing  = body.get("processing", "")
     week        = body.get("week", "")
@@ -103,6 +104,7 @@ def status_form():
                 device      = device,
                 pic         = pic,
                 alarm_type  = alarm_type,
+                alarm_level = alarm_level,
                 reason      = f"{start_time} - {end_time}" if start_time else desc,
                 start_time  = start_time,
                 start_date  = start_date,

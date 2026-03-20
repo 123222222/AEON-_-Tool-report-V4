@@ -589,6 +589,7 @@ function bindStatusModal() {
       device:      $("#status-device").value.trim(),
       pic:         $("#status-pic").value,
       alarm_type:  $("#status-alarm-type").value,
+      alarm_level: $("#status-alarm-level").value,
       status:      $("#status-done").value,
       processing:  $("#status-processing").value,
       week:        $("#status-week").value,

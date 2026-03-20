@@ -138,16 +138,16 @@ def _calc_downtime(start_time: str, start_date: str,
 
         # Overnight: tong thoi gian > 1440 phut (> 1 ngay)
         if total_min > 1440:
-            _log(f"[EXCEL] -> Overnight, {total_min} phut")
+            _log(f"[EXCEL] -> Overnight, {total_min} phút")
             return "Overnight", None, None, total_min
 
         # Daytime: start tu 6:00 den 21:59
         # Nighttime: start tu 22:00 den 5:59
         if 6 <= s_dt.hour < 22:
-            _log(f"[EXCEL] -> Daytime, {total_min} phut")
+            _log(f"[EXCEL] -> Daytime, {total_min} phút")
             return "Daytime", total_min, None, None
         else:
-            _log(f"[EXCEL] -> Nighttime, {total_min} phut")
+            _log(f"[EXCEL] -> Nighttime, {total_min} phút")
             return "Nighttime", None, total_min, None
 
     except Exception as ex:
@@ -172,9 +172,10 @@ def append_status_to_excel(
     site_name:   str,
     device:      str,
     pic:         str,
-    alarm_type:  str,
-    reason:      str,
-    start_time:  str,
+    alarm_type:  str = "",
+    alarm_level: str = "",
+    reason:      str = "",
+    start_time:  str = "",
     start_date:  str = "",
     end_time:    str = "",
     end_date:    str = "",
@@ -241,7 +242,7 @@ def append_status_to_excel(
         end_norm   = _normalize_time(end_time)   if end_time   else ""
 
         def fmt_min(v):
-            return f"{int(v)} phut" if v is not None else None
+            return f"{int(v)} phút" if v is not None else None
 
         ws.cell(row=next_row, column=1).value  = no              # A: STT
         ws.cell(row=next_row, column=2).value  = site_name       # B: Ten bo phan
@@ -252,7 +253,7 @@ def append_status_to_excel(
         # G: rong (col 7)
         ws.cell(row=next_row, column=8).value  = device          # H: Ten thiet bi
         ws.cell(row=next_row, column=9).value  = description     # I: Mo ta
-        # J: rong (col 10)
+        ws.cell(row=next_row, column=10).value = alarm_level     # J: Alarm Level
         ws.cell(row=next_row, column=11).value = alarm_type      # K: Alarm Type
         ws.cell(row=next_row, column=12).value = time_type       # L: Daytime/Nighttime/Overnight
         ws.cell(row=next_row, column=13).value = fmt_min(day_min)       # M: Phut Daytime
