@@ -1,0 +1,23 @@
+services:
+  rmc-assistant:
+    build: .
+    container_name: rmc-assistant-v4
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount thư mục data từ máy host vào container
+      # Đổi D:/RMC_Assistant_ver1.1 thành đường dẫn thực trên máy bạn
+      - D:/RMC_Assistant_ver1.1:/data
+    environment:
+      # Override đường dẫn data về /data trong container
+      - RMC_BASE_DIR=/data
+      # Azure AD (tuỳ chọn — nếu muốn override)
+      # - AZURE_CLIENT_ID=ac4edccf-a8ee-41aa-bcc4-6603c4bebae1
+      # - AZURE_TENANT_ID=5983a1d2-f46b-492d-a9b3-7e2f3609d20b
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/auth/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
