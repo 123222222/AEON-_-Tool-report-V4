@@ -414,11 +414,15 @@ function _setTimePicker(prefix, value) {
 }
 
 function _getTimePicker(prefix) {
-  // Doc gia tri tu HH:MM selects, tra ve "HH:MM" hoac ""
   const h = ($(`#${prefix}-h`) || {}).value || "";
   const m = ($(`#${prefix}-m`) || {}).value || "";
   if (!h || !m) return "";
   return `${h}:${m}`;
+}
+
+function _getDatePicker(prefix) {
+  const el = $(`#${prefix}-date`);
+  return el ? el.value : "";
 }
 
 function openModal(name) {
@@ -444,6 +448,11 @@ function openModal(name) {
     if (dept)   { const el = $("#status-dept");   if (el) el.value = dept; }
     if (device) { const el = $("#status-device"); if (el) el.value = device; }
     if (time)   { _setTimePicker("status-start", time); }
+
+    // Auto-fill ngay hom nay cho ca 2 date picker
+    const todayVal = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+    const sd = $("#status-start-date"); if (sd) sd.value = todayVal;
+    const ed = $("#status-end-date");   if (ed) ed.value = todayVal;
   }
 }
 
@@ -584,7 +593,9 @@ function bindStatusModal() {
       processing:  $("#status-processing").value,
       week:        $("#status-week").value,
       start_time:  _getTimePicker("status-start"),
+      start_date:  _getDatePicker("status-start"),
       end_time:    _getTimePicker("status-end"),
+      end_date:    _getDatePicker("status-end"),
       desc:        $("#status-desc").value.trim(),
     };
 

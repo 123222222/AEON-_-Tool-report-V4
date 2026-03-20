@@ -791,16 +791,54 @@ input[list]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; 
 #sidebar-resizer {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 6px;
+  right: -6px;
+  width: 12px;
   height: 100%;
   cursor: col-resize;
   z-index: 50;
-  background: transparent;
-  transition: background var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-#sidebar-resizer:hover,
-#sidebar-resizer.dragging {
+#sidebar-resizer::before {
+  content: "";
+  display: block;
+  width: 3px;
+  height: 100%;
+  background: var(--border);
+  border-radius: 2px;
+  transition: background var(--transition), width var(--transition);
+}
+/* Dot grip in the middle */
+#sidebar-resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 28px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  background-image: radial-gradient(circle, var(--text-muted) 1.5px, transparent 1.5px);
+  background-size: 4px 4px;
+  background-position: center;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+#sidebar-resizer:hover::before,
+#sidebar-resizer.dragging::before {
   background: var(--accent);
-  opacity: 0.5;
+  width: 3px;
+}
+#sidebar-resizer:hover::after,
+#sidebar-resizer.dragging::after {
+  border-color: var(--accent);
+  background-color: var(--bg-hover);
+  background-image: radial-gradient(circle, var(--accent) 1.5px, transparent 1.5px);
+  background-size: 4px 4px;
 }
