@@ -123,10 +123,22 @@ def schedule_note(note: dict):
     delete_mode = note.get("delete_mode", "delete")
     file_path   = note.get("_file")
 
+    # Convert time tu UTC+7 sang UTC de schedule dung gio
+    def to_utc(t_str):
+        try:
+            h, m = map(int, t_str.split(":"))
+            total = h * 60 + m - 7 * 60  # tru 7 tieng
+            total = total % (24 * 60)     # wrap qua ngay
+            return f"{total // 60:02d}:{total % 60:02d}"
+        except:
+            return t_str
+
     for t in times:
-        def make_job(t=t):
+        t_utc = to_utc(t)
+        def make_job(t=t, t_utc=t_utc):
             def job():
-                now = datetime.datetime.now()
+                # Kiem tra ngay/thang theo gio Viet Nam (UTC+7)
+                now = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
                 if str(now.day) not in days or str(now.month) not in months:
                     return
 
@@ -155,7 +167,7 @@ def schedule_note(note: dict):
 
             return job
 
-        schedule.every().day.at(t).do(make_job())
+        schedule.every().day.at(t_utc).do(make_job())
 
 
 def get_pending_notifications() -> list:

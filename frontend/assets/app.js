@@ -198,15 +198,16 @@ function renderSiteList(group) {
   Object.keys(sites).forEach(siteKey => {
     const item = document.createElement("div");
     item.className = "site-item";
+    const siteSlug = siteKey.replace(/[^a-zA-Z0-9]/g, "-"); // slug an toan cho id
 
     const btn = document.createElement("button");
     btn.className = "site-btn";
     btn.innerHTML = `<span>${siteKey}</span><span class="chevron">›</span>`;
-    btn.onclick = () => toggleSiteItems(siteKey, item, btn);
+    btn.onclick = () => toggleSiteItems(siteKey, siteSlug, item, btn);
 
     const subList = document.createElement("div");
     subList.className = "item-list";
-    subList.id = `items-${siteKey}`;
+    subList.id = `items-${siteSlug}`;
 
     item.appendChild(btn);
     item.appendChild(subList);
@@ -214,8 +215,8 @@ function renderSiteList(group) {
   });
 }
 
-async function toggleSiteItems(siteKey, container, btn) {
-  const subList = $(`#items-${siteKey}`);
+async function toggleSiteItems(siteKey, siteSlug, container, btn) {
+  const subList = $(`#items-${siteSlug}`);
   const isOpen  = subList.classList.contains("visible");
 
   // Close all
@@ -232,7 +233,7 @@ async function toggleSiteItems(siteKey, container, btn) {
   if (!subList.children.length) {
     subList.innerHTML = `<div style="padding:4px 8px; color:var(--text-muted); font-size:11px;"><span class="spinner"></span></div>`;
     try {
-      const items = await apiFetch(`/api/sites/${siteKey}/items`);
+      const items = await apiFetch(`/api/sites/${encodeURIComponent(siteKey)}/items`);
       subList.innerHTML = "";
       items.forEach(it => {
         const b = document.createElement("button");
@@ -600,6 +601,24 @@ function bindStatusModal() {
       desc:        $("#status-desc").value.trim(),
     };
 
+    // Validate bat buoc
+    const missing = [];
+    if (!body.dept)        missing.push("Tên bộ phận / Site");
+    if (!body.device)      missing.push("Tên thiết bị");
+    if (!body.pic)         missing.push("Người phụ trách");
+    if (!body.alarm_type)  missing.push("Alarm Type");
+    if (!body.alarm_level) missing.push("Alarm Level");
+    if (!body.start_time)  missing.push("Thời gian bắt đầu");
+    if (!body.start_date)  missing.push("Ngày bắt đầu");
+    if (!body.end_time)    missing.push("Thời gian kết thúc");
+    if (!body.end_date)    missing.push("Ngày kết thúc");
+    if (!body.desc)        missing.push("Mô tả (Reason)");
+
+    if (missing.length > 0) {
+      showToast("Thiếu thông tin", "Vui lòng điền đủ:\n• " + missing.join("\n• "));
+      return;
+    }
+
     try {
       const notice = $("#status-excel-notice");
       if (notice) notice.style.display = "block";
@@ -675,32 +694,54 @@ function parseMonthsInput(val) {
   return val.split(",").map(t => t.trim()).filter(Boolean);
 }
 
+function _expandTimes(baseTimesStr, repeatCount, intervalMin) {
+  // Tu cac gio goc, sinh them cac gio nhac tiep theo
+  const baseTimes = parseTimesInput(baseTimesStr);
+  const all = [];
+  baseTimes.forEach(t => {
+    const [h, m] = t.split(":").map(Number);
+    for (let i = 0; i < repeatCount; i++) {
+      const total = h * 60 + m + i * intervalMin;
+      const nh = Math.floor(total / 60) % 24;
+      const nm = total % 60;
+      all.push(`${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`);
+    }
+  });
+  // Loai trung lap
+  return [...new Set(all)];
+}
+
 function bindNoteCreate() {
-  const modeSelect = $("#note-mode");
-  const deleteFrame = $("#note-delete-frame");
-
-  modeSelect.onchange = () => {
-    const isOnce = modeSelect.value === "1 lần";
-    deleteFrame.style.opacity = isOnce ? "1" : "0.4";
-    $$("input[name='note-delete']", deleteFrame).forEach(r => r.disabled = !isOnce);
-  };
-
   $("#note-create-submit").onclick = async () => {
-    const times  = parseTimesInput($("#note-times").value);
+    const repeatCount    = parseInt($("#note-repeat-count").value) || 1;
+    const intervalMin    = parseInt($("#note-repeat-interval").value) || 5;
+    const times  = _expandTimes($("#note-times").value, repeatCount, intervalMin);
     const days   = parseDaysInput($("#note-days").value);
     const months = parseMonthsInput($("#note-months").value);
+    const daysRaw   = $("#note-days").value.trim().toLowerCase();
+    const monthsRaw = $("#note-months").value.trim().toLowerCase();
+    const daysIsAll   = daysRaw === "all";
+    const monthsIsAll = monthsRaw === "all";
+
+    // Neu co bat ky truong nao la All -> khong xoa (con nhac lai)
+    // Chi xoa khi ca ngay va thang deu cu the (1 lan duy nhat)
+    const isRecurring = daysIsAll || monthsIsAll;
+
     const body = {
       keyword:     $("#note-keyword").value.trim(),
       content:     $("#note-content").value.trim(),
       times, days, months,
-      mode:        $("#note-mode").value,
-      delete_mode: $("input[name='note-delete']:checked").value,
+      mode:        isRecurring ? "Cố định" : "1 lần",
+      delete_mode: isRecurring ? "keep"    : "delete",
     };
     if (!body.keyword || !body.content) { showToast("Thiếu thông tin", "Nhập keyword và nội dung."); return; }
+    if (!body.times.length)             { showToast("Thiếu thông tin", "Nhập giờ báo."); return; }
+    if (!body.days.length)              { showToast("Thiếu thông tin", "Nhập ngày báo."); return; }
+    if (!body.months.length)            { showToast("Thiếu thông tin", "Nhập tháng báo."); return; }
     try {
       const res = await apiFetch("/api/notes", { method: "POST", body: JSON.stringify(body) });
       if (res.error) { showToast("Lỗi", res.error); return; }
-      showToast("Thành công", `Đã tạo note #${res.stt}`);
+      showToast("Thành công", `Đã tạo note #${res.stt} (${times.length} lần nhắc: ${times.join(", ")})`);
       ["note-keyword","note-content","note-times","note-days","note-months"].forEach(id => $(`#${id}`).value = "");
       loadNotesList();
     } catch { showToast("Lỗi", "Không thể kết nối API"); }
@@ -743,11 +784,10 @@ function renderNotesTable(notes) {
     tr.innerHTML = `
       <td>${n.stt}</td>
       <td>${n.keyword}</td>
-      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${n.content}">${n.content}</td>
-      <td>${n.times.join(", ")}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${n.content}">${n.content}</td>
+      <td style="font-size:11px;">${n.times.join(", ")}</td>
       <td>${n.days.join(", ")}</td>
       <td>${n.months.join(", ")}</td>
-      <td>${n.mode}</td>
       <td><button class="delete-row-btn" data-stt="${n.stt}">✕</button></td>
     `;
     tbody.appendChild(tr);
@@ -951,8 +991,8 @@ function startNotificationPoller() {
     try {
       const notifs = await apiFetch("/api/notes/pending");
       notifs.forEach(n => {
-        showToast(`🔔 ${n.keyword}`, n.content, 10000);
-        // Browser notification
+        showReminder(n.keyword, n.content, n.time || "");
+        // Browser notification van gui de bao khi tab o nen
         if (Notification.permission === "granted") {
           new Notification(n.keyword, { body: n.content });
         }
@@ -979,11 +1019,73 @@ function bindGroupTabs() {
   });
 }
 
+/* ── Slack send ─────────────────────────────────────────────── */
+function bindSlackButton() {
+  const btn = $("#btn-slack");
+  if (!btn) return;
+  btn.onclick = async () => {
+    const text = $("#output-text").value.trim();
+    if (!text || text.startsWith("⏳") || text.startsWith("[")) {
+      showToast("Chưa có nội dung", "Chọn báo cáo hoặc điền thông tin trước.");
+      return;
+    }
+    // Lay site key tu active site button
+    const activeSiteBtn = $(".site-btn.open");
+    const siteKey = activeSiteBtn
+      ? activeSiteBtn.querySelector("span")?.textContent?.trim() || ""
+      : "";
+
+    btn.disabled = true;
+    btn.textContent = "⏳";
+    try {
+      const res = await apiFetch("/api/send-slack", {
+        method: "POST",
+        body: JSON.stringify({ text, site: siteKey }),
+      });
+      if (res.error) showToast("Lỗi Slack", res.error);
+      else showToast("Đã gửi Slack ✓", `Đã gửi vào channel của ${siteKey || "mặc định"}`);
+    } catch {
+      showToast("Lỗi", "Không thể kết nối API");
+    }
+    btn.disabled = false;
+    btn.textContent = "📨 Slack";
+  };
+}
+
+/* ── Reminder overlay ───────────────────────────────────────── */
+const _reminderQueue = [];
+let _reminderShowing = false;
+
+function showReminder(keyword, content, time) {
+  _reminderQueue.push({ keyword, content, time });
+  if (!_reminderShowing) _showNextReminder();
+}
+
+function _showNextReminder() {
+  if (_reminderQueue.length === 0) {
+    _reminderShowing = false;
+    return;
+  }
+  _reminderShowing = true;
+  const { keyword, content, time } = _reminderQueue.shift();
+  $("#reminder-keyword").textContent = keyword;
+  $("#reminder-content").textContent = content;
+  $("#reminder-time").textContent    = `⏰ ${time}`;
+  $("#reminder-overlay").classList.add("open");
+}
+
+function closeReminder() {
+  $("#reminder-overlay").classList.remove("open");
+  // Hien cai tiep theo neu con trong queue
+  setTimeout(_showNextReminder, 300);
+}
+
 /* ── Boot ────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   bindThemeToggle();
   initSidebarResize();
+  bindSlackButton();
   bindItemSearch();
   bindLoginCopy();
   bindGroupTabs();

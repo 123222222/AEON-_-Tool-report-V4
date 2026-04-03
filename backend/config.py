@@ -9,7 +9,7 @@ load_dotenv()
 CLIENT_ID  = os.getenv("AZURE_CLIENT_ID",  "ac4edccf-a8ee-41aa-bcc4-6603c4bebae1")
 TENANT_ID  = os.getenv("AZURE_TENANT_ID",  "5983a1d2-f46b-492d-a9b3-7e2f3609d20b")
 AUTHORITY  = f"https://login.microsoftonline.com/{TENANT_ID}"
-GRAPH_SCOPES = ["Files.ReadWrite"]
+GRAPH_SCOPES = ["Files.Read"]
 
 # ============================================================
 # Base OneDrive share link (ROOT folder)
@@ -109,18 +109,37 @@ IMAGE_PATHS = {
     },
 }
 
-# Sites config: group → list_key → OneDrive path
+# Sites config: group -> list_key -> OneDrive path
+# Key = ten hien thi tren web, value = duong dan OneDrive
 SITES_CONFIG = {
     "AEONMALL": {
-        "ANVL":  NVL_REPORT_FORM_PATH,
-        "ATQB":  TQB_REPORT_FORM_PATH,
-        "ABDNC": BDNC_REPORT_FORM_PATH,
-        "AVG":   VG_REPORT_FORM_PATH,
-        "AMDR":  MDR_REPORT_FORM_PATH,
+        "AEON Nguyen Van Linh": NVL_REPORT_FORM_PATH,
+        "AEON Ta Quang Buu":    TQB_REPORT_FORM_PATH,
+        "AEON Binh Duong NC":   BDNC_REPORT_FORM_PATH,
+        "AEON Van Giang":       VG_REPORT_FORM_PATH,
+        "AEON Midori":          MDR_REPORT_FORM_PATH,
     },
     "MAXVALUE": {
-        "LACASTA": LACASTA_REPORT_FORM_PATH,
+        "LaCasta": LACASTA_REPORT_FORM_PATH,
     },
+}
+
+# Map ten site -> site key cho Slack routing
+# Key la ten UPPERCASE khong dau (cach browser gui len)
+SITE_KEY_MAP = {
+    "AEON NGUYEN VAN LINH": "ANVL",
+    "AEON TA QUANG BUU":    "ATQB",
+    "AEON BINH DUONG NC":   "ABDNC",
+    "AEON VAN GIANG":       "AVG",
+    "AEON MIDORI":          "AMDR",
+    "LACASTA":              "LACASTA",
+    # ten goc co dau (fallback)
+    "AEON Nguyen Van Linh": "ANVL",
+    "AEON Ta Quang Buu":    "ATQB",
+    "AEON Binh Duong NC":   "ABDNC",
+    "AEON Van Giang":       "AVG",
+    "AEON Midori":          "AMDR",
+    "LaCasta":              "LACASTA",
 }
 
 # ============================================================

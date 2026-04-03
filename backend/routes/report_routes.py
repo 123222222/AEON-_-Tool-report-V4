@@ -14,16 +14,23 @@ _cache_lock = threading.Lock()
 
 
 def _get_site_files(site_key: str) -> dict:
-    """Lấy và cache danh sách files cho một site. Trả về {label: file_id}."""
+    """Lay va cache danh sach files cho mot site."""
     with _cache_lock:
         if site_key in _site_files_cache:
             return _site_files_cache[site_key]
 
-    # Tìm OneDrive path
+    # Tim OneDrive path — thu ca ten day du lan ten viet tat
     onedrive_path = None
     for group in SITES_CONFIG.values():
         if site_key in group:
             onedrive_path = group[site_key]
+            break
+        # Thu uppercase
+        for k, v in group.items():
+            if k.upper() == site_key.upper():
+                onedrive_path = v
+                break
+        if onedrive_path:
             break
     if not onedrive_path:
         return {}
@@ -47,13 +54,13 @@ def get_sites():
     return jsonify(SITES_CONFIG)
 
 
-@report_bp.get("/sites/<site_key>/items")
+@report_bp.get("/sites/<path:site_key>/items")
 def get_site_items(site_key: str):
     """Trả về danh sách file (label + id) của một site."""
     try:
-        items = _get_site_files(site_key.upper())
+        items = _get_site_files(site_key)  # giu nguyen ten day du, khong upper
         if not items:
-            return jsonify({"error": f"Site '{site_key}' không tồn tại hoặc chưa có dữ liệu"}), 404
+            return jsonify({"error": f"Site '{site_key}' khong ton tai hoac chua co du lieu"}), 404
         # Trả về list: [{label, file_id, file_name}]
         result = [
             {"label": label, "file_id": meta["id"], "file_name": meta["name"]}

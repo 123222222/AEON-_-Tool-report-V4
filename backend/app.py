@@ -1,7 +1,7 @@
 import os
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from routes import auth_bp, report_bp, contact_bp, note_bp, image_bp, docs_bp
+from routes import auth_bp, report_bp, contact_bp, note_bp, image_bp, docs_bp, slack_bp
 from services.note import reload_all_schedules
 
 
@@ -13,7 +13,7 @@ def create_app() -> Flask:
     )
     CORS(app)
 
-    for bp in [auth_bp, report_bp, contact_bp, note_bp, image_bp, docs_bp]:
+    for bp in [auth_bp, report_bp, contact_bp, note_bp, image_bp, docs_bp, slack_bp]:
         app.register_blueprint(bp)
 
     @app.route("/", defaults={"path": ""})
