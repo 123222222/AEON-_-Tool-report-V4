@@ -22,6 +22,7 @@ const state = {
   notesList:      [],
   activeSiteBtn:  null,
   activeItemBtn:  null,
+  chartInstances: {},
 };
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -139,6 +140,7 @@ function bindTopbar() {
   $("#btn-catch").onclick    = () => { state.clockRunning = false; };
   $("#btn-continue").onclick = () => { state.clockRunning = true;  };
   $("#btn-sync").onclick     = triggerBackgroundSync;
+  $("#btn-charts").onclick   = showChartsModal;
 }
 
 /* ── Countdown ─────────────────────────────────────────────── */
@@ -1078,6 +1080,11 @@ function closeReminder() {
   $("#reminder-overlay").classList.remove("open");
   // Hien cai tiep theo neu con trong queue
   setTimeout(_showNextReminder, 300);
+}
+
+/* ── Charts ────────────────────────────────────────────────── */
+function showChartsModal() {
+  window.open("/charts.html", "_blank");
 }
 
 /* ── Boot ────────────────────────────────────────────────────── */

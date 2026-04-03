@@ -275,3 +275,38 @@ def append_status_to_excel(
             os.unlink(local_path)
 
     return {"row": next_row, "no": no}
+
+
+def get_excel_data() -> list:
+    """
+    Download file Excel tu OneDrive, doc toan bo du lieu va tra ve duoi dang list of dict.
+    """
+    drive_id, item_id = _resolve_excel_item()
+    local_path        = _download_excel(drive_id, item_id)
+
+    try:
+        wb = openpyxl.load_workbook(local_path, data_only=True)
+        ws = wb["Sheet1"]
+        
+        data = []
+        # Bat dau tu hang 9 (du lieu that)
+        for row in range(9, ws.max_row + 1):
+            stt = ws.cell(row=row, column=1).value
+            if not stt:
+                continue
+                
+            site_name  = ws.cell(row=row, column=2).value
+            start_date = ws.cell(row=row, column=4).value
+            device     = ws.cell(row=row, column=8).value
+            
+            # site_name, start_date, device la cac truong quan trong de thong ke
+            data.append({
+                "site_name":  site_name,
+                "start_date": start_date,
+                "device":     device,
+            })
+            
+        return data
+    finally:
+        if os.path.exists(local_path):
+            os.unlink(local_path)

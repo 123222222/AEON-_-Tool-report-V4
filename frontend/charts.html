@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thống kê lỗi AEON - Full Screen</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 10px;
+      height: 100vh;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 15px;
+      height: calc(100vh - 60px);
+      width: 100%;
+    }
+    .chart-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .chart-box h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      text-align: center;
+      color: #38bdf8;
+    }
+    .chart-canvas-wrapper {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px 10px 10px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .btn-back {
+      padding: 6px 15px;
+      background: #334155;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    /* Empty box style */
+    .empty-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #475569;
+        font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 THỐNG KÊ LỖI THIẾT BỊ - 5 SITE AEON</h1>
+    <button class="btn-back" onclick="window.close(); if(window.opener){window.opener.focus();} else {window.history.back();}">Đóng / Quay lại</button>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-box">
+      <h3>AEON Nguyễn Văn Linh</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-anvl"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <h3>AEON Tạ Quang Bửu</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-atqb"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <h3>AEON Bình Dương NC</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-abdnc"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <h3>AEON Văn Giang</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-avg"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <h3>AEON Midori</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-amdr"></canvas></div>
+    </div>
+    <div class="chart-box empty-box">
+      RMC Assistant Dashboard
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const API = window.location.origin;
+    let chartInstances = {}; // Khai báo ở phạm vi toàn cục
+
+    async function initCharts() {
+      console.log("initCharts called at", new Date().toLocaleTimeString());
+      // Destroy existing charts before rendering new ones
+      Object.values(chartInstances).forEach(chart => chart.destroy());
+      chartInstances = {};
+      try {
+        const res = await fetch(API + "/api/charts/data");
+        const data = await res.json();
+        renderAll(data);
+      } catch (e) {
+        console.error("Lỗi tải dữ liệu:", e);
+      }
+    }
+
+    function renderAll(data) {
+      const sites = {
+        "AEON Nguyen Van Linh": "chart-anvl",
+        "AEON Ta Quang Buu":    "chart-atqb",
+        "AEON Binh Duong NC":   "chart-abdnc",
+        "AEON Van Giang":       "chart-avg",
+        "AEON Midori":          "chart-amdr"
+      };
+
+      Object.entries(sites).forEach(([siteName, canvasId]) => {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        const siteData = data[siteName] || [];
+        const months = siteData.map(d => d.month);
+        
+        const allDevices = new Set();
+        siteData.forEach(d => {
+          Object.keys(d.devices).forEach(dev => allDevices.add(dev));
+        });
+        
+        const datasets = Array.from(allDevices).map((device, index) => {
+          const counts = siteData.map(d => d.devices[device] || 0);
+          const color = `hsl(${(index * 137.5) % 360}, 70%, 65%)`;
+          
+          return {
+            label: device,
+            data: counts,
+            backgroundColor: color,
+            borderColor: color,
+            borderWidth: 1
+          };
+        });
+
+        chartInstances[canvasId] = new Chart(ctx, {
+          type: 'bar',
+          data: { labels: months, datasets: datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { boxWidth: 10, color: '#94a3b8', font: { size: 10 } }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { color: '#94a3b8', stepSize: 1 },
+                grid: { color: 'rgba(255,255,255,0.05)' }
+              },
+              x: {
+                ticks: { color: '#94a3b8' },
+                grid: { color: 'rgba(255,255,255,0.05)' }
+              }
+            }
+          }
+        });
+      });
+    }
+
+    initCharts();
+    setInterval(initCharts, 2 * 60 * 1000); // Tự động làm mới sau mỗi 2 phút
+  </script>
+</body>
+</html>

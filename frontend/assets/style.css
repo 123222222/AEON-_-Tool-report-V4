@@ -558,7 +558,19 @@ body {
 }
 .btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-/* Note manager */
+/* Charts */
+#charts-modal .modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.chart-wrapper {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  min-height: 400px;
+}
 #note-modal .modal { min-width: 720px; max-width: 900px; }
 
 .note-tabs { display: flex; gap: 4px; }
