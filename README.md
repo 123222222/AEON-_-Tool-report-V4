@@ -56,6 +56,18 @@ Tạo file `.env` trong thư mục `backend/`:
 AZURE_CLIENT_ID=ac4edccf-a8ee-41aa-bcc4-6603c4bebae1
 AZURE_TENANT_ID=5983a1d2-f46b-492d-a9b3-7e2f3609d20b
 
+# OAuth cho đăng nhập người dùng (Microsoft / Google)
+MS_OAUTH_CLIENT_ID=...
+MS_OAUTH_CLIENT_SECRET=...
+GOOGLE_OAUTH_CLIENT_ID=...
+GOOGLE_OAUTH_CLIENT_SECRET=...
+
+# Secret key cho Flask session
+APP_SECRET_KEY=your-random-secret
+
+# Hard admin account(s), phân tách bằng dấu phẩy
+ADMIN_EMAILS=dung.ho@aeondelight.biz
+
 # OneDrive share link gốc
 BASE_SHARE_LINK=https://aeondelight-my.sharepoint.com/...
 
@@ -84,9 +96,17 @@ Hoặc mở trực tiếp file `frontend/index.html` (cần CORS cho dev mode).
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET  | `/api/auth/status` | Kiểm tra đăng nhập |
-| POST | `/api/auth/device-flow` | Bắt đầu device flow |
-| GET  | `/api/auth/device-flow/poll` | Poll trạng thái đăng nhập |
+| GET  | `/api/auth/providers` | Danh sách provider đăng nhập đã bật |
+| GET  | `/api/auth/me` | Trạng thái phiên user hiện tại |
+| GET  | `/api/auth/login/{provider}` | Bắt đầu OAuth login (microsoft/google) |
+| GET  | `/api/auth/callback/{provider}` | OAuth callback |
+| POST | `/api/auth/logout` | Đăng xuất |
+| GET  | `/api/auth/admin/users` | Admin xem danh sách user |
+| POST | `/api/auth/admin/users` | Admin thêm user |
+| POST | `/api/auth/admin/users/{id}/approve` | Admin phê duyệt user |
+| DELETE | `/api/auth/admin/users/{id}` | Admin xóa user |
+| POST | `/api/auth/graph/device-flow` | Bắt đầu device flow cho Graph token |
+| GET  | `/api/auth/graph/device-flow/poll` | Poll trạng thái Graph login |
 | GET  | `/api/sites` | Danh sách sites |
 | GET  | `/api/sites/{key}/items` | Items của một site |
 | POST | `/api/report/text` | Đọc nội dung report |
@@ -111,6 +131,8 @@ Hoặc mở trực tiếp file `frontend/index.html` (cần CORS cho dev mode).
 ## Lưu ý quan trọng
 
 - **Token cache**: File `token_cache.bin` lưu ở `CACHE_DIR`. Lần đầu cần đăng nhập, các lần sau tự động refresh.
+- **User approval**: User đăng nhập lần đầu sẽ ở trạng thái `pending`; chỉ truy cập được khi admin phê duyệt.
+- **User DB**: Danh sách user lưu tại `METADATA/users.json`.
 - **Reminder notifications**: Backend chạy schedule. Frontend poll `/api/notes/pending` mỗi 30 giây. Browser sẽ yêu cầu quyền `Notification` khi khởi động.
 - **CORS**: Đã cấu hình `flask-cors`. Nếu serve frontend từ domain khác cần cập nhật `origins` trong `app.py`.
 - **Tkinter đã bỏ hoàn toàn**: Không cần `tkinter`, `tkcalendar`, `pyperclip`, `PIL` nữa.

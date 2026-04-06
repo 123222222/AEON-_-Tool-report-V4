@@ -15,18 +15,15 @@
   <div class="login-card">
     <div class="login-title">RMC <span>Report Assistant</span></div>
     <div class="login-desc">
-      Đăng nhập tài khoản Azure AD để tiếp tục.<br>
-      Truy cập liên kết bên dưới và nhập mã xác nhận.
+      Đăng nhập hoặc đăng ký bằng tài khoản Microsoft / Google.<br>
+      Tài khoản user cần được admin phê duyệt trước khi truy cập hệ thống.
     </div>
-    <div class="login-code-box">
-      <div class="login-url" id="login-url">Đang khởi tạo...</div>
-      <div class="login-code" id="login-code">──────</div>
-      <div class="login-copy-row">
-        <button id="copy-url-btn">📋 Copy link</button>
-        <button id="copy-code-btn">📋 Copy mã</button>
-      </div>
+    <div class="login-actions">
+      <button class="oauth-btn ms" id="btn-login-microsoft">Tiếp tục với Microsoft</button>
+      <button class="oauth-btn gg" id="btn-login-google">Tiếp tục với Google</button>
     </div>
-    <div class="login-status checking" id="login-status">Đang kết nối </div>
+    <div class="login-status" id="login-status">Chưa đăng nhập</div>
+    <div class="login-hint" id="login-hint">Nếu bạn là user mới, chỉ cần đăng nhập một lần để tạo tài khoản chờ duyệt.</div>
   </div>
 </div>
 
@@ -49,11 +46,14 @@
     <button class="topbar-btn" id="btn-slack" title="Gửi nội dung lên Slack" style="color:#e01e5a;border-color:#e01e5a;">📨 Slack</button>
     <button class="topbar-btn" id="btn-sync">⟳ Sync</button>
     <button class="topbar-btn" id="btn-charts" title="Xem biểu đồ thống kê">📊 Biểu đồ</button>
+    <button class="topbar-btn hidden" id="btn-admin" title="Quản lý tài khoản">👑 Admin</button>
 
     <div id="auth-badge">
       <span class="dot"></span>
       <span class="label">Chưa đăng nhập</span>
     </div>
+    <div id="auth-user" class="hidden"></div>
+    <button class="topbar-btn hidden" id="btn-logout" title="Đăng xuất">Đăng xuất</button>
   </header>
 
   <!-- ── Sidebar ── -->
@@ -873,6 +873,46 @@
         </thead>
         <tbody id="docs-tbody">
           <tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Chưa tải dữ liệu...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary btn-close-modal">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: ADMIN USER MANAGEMENT
+═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="admin-modal">
+  <div class="modal">
+    <div class="modal-title">👑 Admin — Quản lý tài khoản</div>
+
+    <div class="form-grid" style="grid-template-columns:1fr 1fr 150px;">
+      <div class="form-group">
+        <label>Email user</label>
+        <input type="email" id="admin-new-email" placeholder="user@company.com">
+      </div>
+      <div class="form-group">
+        <label>Tên hiển thị</label>
+        <input type="text" id="admin-new-name" placeholder="Nguyen Van A">
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end;">
+        <button class="btn-primary" id="admin-add-user" style="width:100%;">Thêm user</button>
+      </div>
+    </div>
+
+    <div class="note-table-wrap" style="max-height:380px;overflow-y:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th><th>Tên</th><th>Provider</th><th>Vai trò</th><th>Duyệt</th><th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="admin-users-tbody">
+          <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Chưa có dữ liệu...</td></tr>
         </tbody>
       </table>
     </div>

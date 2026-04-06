@@ -4,10 +4,32 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ============================================================
+# Application Auth (end-user login)
+# ============================================================
+APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "rmc-assistant-change-me")
+PUBLIC_BASE_URL = (os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")
+
+# Hard admin accounts (comma separated list supported).
+# Example: ADMIN_EMAILS=dung.ho@aeondelight.biz,admin@company.com
+ADMIN_EMAILS = [
+    e.strip().lower()
+    for e in os.getenv("ADMIN_EMAILS", "dung.ho@aeondelight.biz").split(",")
+    if e.strip()
+]
+
+# OAuth credentials for end-user sign in
+MS_OAUTH_CLIENT_ID = os.getenv("MS_OAUTH_CLIENT_ID", "")
+MS_OAUTH_CLIENT_SECRET = os.getenv("MS_OAUTH_CLIENT_SECRET", "")
+
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
+
+# ============================================================
 # Azure AD Configuration
 # ============================================================
 CLIENT_ID  = os.getenv("AZURE_CLIENT_ID",  "ac4edccf-a8ee-41aa-bcc4-6603c4bebae1")
 TENANT_ID  = os.getenv("AZURE_TENANT_ID",  "5983a1d2-f46b-492d-a9b3-7e2f3609d20b")
+MS_OAUTH_TENANT_ID = os.getenv("MS_OAUTH_TENANT_ID") or TENANT_ID
 AUTHORITY  = f"https://login.microsoftonline.com/{TENANT_ID}"
 GRAPH_SCOPES = ["Files.Read"]
 
@@ -75,6 +97,7 @@ IMAGE_AL_DIR           = os.path.join(BASE_DIR, "IMAGE", "ALARMPOINT")
 DOCUMENTARY_ARCHIVE_DIR = os.path.join(BASE_DIR, "DOCUMENTARY")
 METADATA_DIR           = os.path.join(BASE_DIR, "METADATA")
 METADATA_FILE          = os.path.join(METADATA_DIR, "onedrive_metadata.json")
+USERS_DB_FILE          = os.path.join(METADATA_DIR, "users.json")
 
 # Image category → local dir mapping
 IMAGE_CATEGORY_DIR = {

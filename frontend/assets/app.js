@@ -7,6 +7,9 @@ const API = window.location.origin;
 /* ── State ─────────────────────────────────────────────────── */
 const state = {
   authenticated: false,
+  appInitialized: false,
+  currentUser: null,
+  isAdmin: false,
   currentGroup:  "AEONMALL",
   originalReportText: "",   // luu noi dung bao cao goc, khong bi ghi de boi Contact/Status
   clockRunning:  true,
@@ -51,64 +54,99 @@ function copyToClipboard(text) {
 }
 
 /* ── Login / Auth ─────────────────────────────────────────── */
+function bindAuthButtons() {
+  const ms = $("#btn-login-microsoft");
+  const gg = $("#btn-login-google");
+
+  if (ms) ms.onclick = () => { window.location.href = "/api/auth/login/microsoft"; };
+  if (gg) gg.onclick = () => { window.location.href = "/api/auth/login/google"; };
+}
+
+function applyProviderAvailability(providers = []) {
+  const setEnabled = (id, providerName) => {
+    const btn = $(id);
+    if (!btn) return;
+    const enabled = providers.includes(providerName);
+    btn.disabled = !enabled;
+    btn.title = enabled ? "" : "Provider này chưa được cấu hình ở backend";
+  };
+
+  setEnabled("#btn-login-microsoft", "microsoft");
+  setEnabled("#btn-login-google", "google");
+
+  if (!providers.length) {
+    showLoginScreen(
+      "Chưa cấu hình đăng nhập OAuth",
+      "Admin cần cấu hình MS_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_ID trong Docker .env rồi khởi động lại container."
+    );
+  }
+}
+
+function showLoginScreen(statusText, hintText = "") {
+  $("#login-screen").classList.remove("hidden");
+  if (statusText) $("#login-status").textContent = statusText;
+  if (hintText) $("#login-hint").textContent = hintText;
+}
+
+function handleAuthQueryHint() {
+  const params = new URLSearchParams(window.location.search);
+  const auth = params.get("auth");
+  if (!auth) return;
+
+  if (auth === "success") showToast("Đăng nhập thành công", "Bạn đã đăng nhập hệ thống.");
+  if (auth === "pending") showToast("Đang chờ duyệt", "Tài khoản của bạn đang chờ admin phê duyệt.");
+  if (auth === "failed") showToast("Đăng nhập thất bại", "Không thể xác thực tài khoản.");
+  if (auth === "provider_not_configured") showToast("Thiếu cấu hình", "Provider đăng nhập chưa được cấu hình ở backend.");
+
+  history.replaceState({}, document.title, window.location.pathname);
+}
+
 async function checkAuth() {
   try {
-    const res = await apiFetch("/api/auth/status");
-    if (res.authenticated) {
-      onAuthSuccess();
-    } else {
-      showLoginScreen();
-    }
-  } catch {
-    showLoginScreen();
-  }
-}
+    const res = await apiFetch("/api/auth/me");
+    applyProviderAvailability(res.providers || []);
 
-function showLoginScreen() {
-  $("#login-screen").classList.remove("hidden");
-  startDeviceFlow();
-}
-
-async function startDeviceFlow() {
-  try {
-    const data = await apiFetch("/api/auth/device-flow", { method: "POST" });
-    if (data.status === "error") {
-      $("#login-status").textContent = "Lỗi: " + data.message;
+    if (!res.logged_in) {
+      showLoginScreen("Chưa đăng nhập", "Nếu bạn là user mới, đăng nhập một lần để tạo tài khoản chờ duyệt.");
       return;
     }
-    $("#login-url").textContent  = data.verification_uri;
-    $("#login-code").textContent = data.user_code;
-    $("#login-status").className = "login-status checking";
-    $("#login-status").textContent = "Đang chờ xác nhận ";
 
-    // Poll every 2s
-    const poll = setInterval(async () => {
-      const r = await apiFetch("/api/auth/device-flow/poll");
-      if (r.status === "success") {
-        clearInterval(poll);
-        onAuthSuccess();
-      } else if (r.status === "error") {
-        clearInterval(poll);
-        $("#login-status").textContent = "Lỗi đăng nhập: " + r.message;
-      }
-    }, 2000);
-  } catch (e) {
-    $("#login-status").textContent = "Không thể kết nối backend.";
+    if (!res.can_access) {
+      showLoginScreen(
+        "Tài khoản đang chờ admin phê duyệt",
+        "Vui lòng liên hệ admin để được cấp quyền truy cập."
+      );
+      return;
+    }
+
+    onAuthSuccess(res.user);
+  } catch {
+    showLoginScreen("Không thể kết nối backend.");
   }
 }
 
-function onAuthSuccess() {
+function onAuthSuccess(user) {
   state.authenticated = true;
+  state.currentUser = user || null;
+  state.isAdmin = !!user && user.role === "admin";
+
   $("#login-screen").classList.add("hidden");
   $("#auth-badge").classList.add("ok");
-  $("#auth-badge .label").textContent = "Đã đăng nhập";
-  initApp();
-}
+  $("#auth-badge .label").textContent = state.isAdmin ? "Admin" : "Đã đăng nhập";
 
-/* ── Copy login helpers ─────────────────────────────────────── */
-function bindLoginCopy() {
-  $("#copy-url-btn").onclick  = () => copyToClipboard($("#login-url").textContent);
-  $("#copy-code-btn").onclick = () => copyToClipboard($("#login-code").textContent);
+  const authUser = $("#auth-user");
+  if (authUser && user) {
+    authUser.textContent = `${user.name || "User"} (${user.email || ""})`;
+    authUser.classList.remove("hidden");
+  }
+
+  $("#btn-logout")?.classList.remove("hidden");
+  if (state.isAdmin) $("#btn-admin")?.classList.remove("hidden");
+
+  if (!state.appInitialized) {
+    state.appInitialized = true;
+    initApp();
+  }
 }
 
 /* ── App init ──────────────────────────────────────────────── */
@@ -141,6 +179,14 @@ function bindTopbar() {
   $("#btn-continue").onclick = () => { state.clockRunning = true;  };
   $("#btn-sync").onclick     = triggerBackgroundSync;
   $("#btn-charts").onclick   = showChartsModal;
+  $("#btn-logout").onclick   = async () => {
+    await apiFetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/";
+  };
+  $("#btn-admin").onclick    = () => {
+    openModal("admin");
+    loadAdminUsers();
+  };
 }
 
 /* ── Countdown ─────────────────────────────────────────────── */
@@ -472,6 +518,117 @@ function bindModalCloses() {
   $$(".btn-close-modal").forEach(btn => {
     btn.onclick = () => btn.closest(".modal-overlay").classList.remove("open");
   });
+}
+
+/* ── Admin user management ─────────────────────────────────── */
+function _adminActionsHtml(user) {
+  const actions = [];
+  if (!user.approved) {
+    actions.push(`<button class="topbar-btn admin-approve" data-id="${user.id}">Duyệt</button>`);
+  }
+  actions.push(`<button class="topbar-btn admin-delete" data-id="${user.id}">Xóa</button>`);
+  return actions.join(" ");
+}
+
+function renderAdminUsers(users) {
+  const tbody = $("#admin-users-tbody");
+  if (!tbody) return;
+
+  if (!Array.isArray(users) || users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Không có user</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = users.map(user => {
+    const badge = user.approved
+      ? '<span class="admin-pill ok">approved</span>'
+      : '<span class="admin-pill pending">pending</span>';
+
+    return `
+      <tr>
+        <td>${user.email || ""}</td>
+        <td>${user.name || ""}</td>
+        <td>${user.provider || ""}</td>
+        <td>${user.role || "user"}</td>
+        <td>${badge}</td>
+        <td>${_adminActionsHtml(user)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  $$(".admin-approve", tbody).forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const res = await apiFetch(`/api/auth/admin/users/${id}/approve`, { method: "POST" });
+      if (res.error) {
+        showToast("Lỗi", res.error);
+      } else {
+        showToast("Thành công", "Đã duyệt user.");
+        loadAdminUsers();
+      }
+    };
+  });
+
+  $$(".admin-delete", tbody).forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const ok = window.confirm("Bạn chắc chắn muốn xóa user này?");
+      if (!ok) return;
+
+      const res = await apiFetch(`/api/auth/admin/users/${id}`, { method: "DELETE" });
+      if (res.error) {
+        showToast("Lỗi", res.error);
+      } else {
+        showToast("Thành công", "Đã xóa user.");
+        loadAdminUsers();
+      }
+    };
+  });
+}
+
+async function loadAdminUsers() {
+  const tbody = $("#admin-users-tbody");
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);"><span class="spinner"></span></td></tr>';
+  }
+  const res = await apiFetch("/api/auth/admin/users");
+  if (res.error) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);">${res.error}</td></tr>`;
+    }
+    return;
+  }
+  renderAdminUsers(res);
+}
+
+function bindAdminModal() {
+  const btn = $("#admin-add-user");
+  if (!btn) return;
+
+  btn.onclick = async () => {
+    const email = ($("#admin-new-email")?.value || "").trim();
+    const name = ($("#admin-new-name")?.value || "").trim();
+
+    if (!email) {
+      showToast("Thiếu thông tin", "Vui lòng nhập email user.");
+      return;
+    }
+
+    const res = await apiFetch("/api/auth/admin/users", {
+      method: "POST",
+      body: JSON.stringify({ email, name, approved: true }),
+    });
+
+    if (res.error) {
+      showToast("Lỗi", res.error);
+      return;
+    }
+
+    $("#admin-new-email").value = "";
+    $("#admin-new-name").value = "";
+    showToast("Thành công", `Đã thêm user ${res.email}.`);
+    loadAdminUsers();
+  };
 }
 
 /* ── Contact modal ────────────────────────────────────────────── */
@@ -1089,16 +1246,18 @@ function showChartsModal() {
 
 /* ── Boot ────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
+  handleAuthQueryHint();
   initTheme();
   bindThemeToggle();
   initSidebarResize();
   bindSlackButton();
   bindItemSearch();
-  bindLoginCopy();
+  bindAuthButtons();
   bindGroupTabs();
   bindSiteSearch();
   bindOutputActions();
   bindModalCloses();
+  bindAdminModal();
   bindContactModal();
   bindStatusModal();
   bindNoteCreate();

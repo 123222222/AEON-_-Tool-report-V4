@@ -12,6 +12,17 @@ services:
     environment:
       # Override đường dẫn data về /data trong container
       - RMC_BASE_DIR=/data
+      # Auth app/session
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-change-me-in-env}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-dung.ho@aeondelight.biz}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+
+      # OAuth login providers (Microsoft / Google)
+      - MS_OAUTH_CLIENT_ID=${MS_OAUTH_CLIENT_ID:-}
+      - MS_OAUTH_CLIENT_SECRET=${MS_OAUTH_CLIENT_SECRET:-}
+      - MS_OAUTH_TENANT_ID=${MS_OAUTH_TENANT_ID:-}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-}
+      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET:-}
       # Azure AD (tuỳ chọn — nếu muốn override)
       # - AZURE_CLIENT_ID=ac4edccf-a8ee-41aa-bcc4-6603c4bebae1
       # - AZURE_TENANT_ID=5983a1d2-f46b-492d-a9b3-7e2f3609d20b
