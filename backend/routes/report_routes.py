@@ -44,8 +44,9 @@ def _get_site_files(site_key: str) -> dict:
         label = f["name"].replace(".txt", "").replace(".TXT", "")
         result[label] = {"id": f["id"], "name": f["name"]}
 
-    with _cache_lock:
-        _site_files_cache[site_key] = result
+    if result:
+        with _cache_lock:
+            _site_files_cache[site_key] = result
 
     return result
 
@@ -63,7 +64,7 @@ def get_site_items(site_key: str):
     try:
         items = _get_site_files(site_key)  # giu nguyen ten day du, khong upper
         if not items:
-            return jsonify({"error": f"Site '{site_key}' khong ton tai hoac chua co du lieu"}), 404
+            return jsonify([])
         # Trả về list: [{label, file_id, file_name}]
         result = [
             {"label": label, "file_id": meta["id"], "file_name": meta["name"]}

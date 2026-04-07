@@ -37,7 +37,21 @@ async function apiFetch(path, opts = {}) {
     headers: { "Content-Type": "application/json" },
     ...opts,
   });
-  return res.json();
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    const err = new Error((data && data.error) ? data.error : `HTTP ${res.status}`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
 }
 
 function showToast(title, message, duration = 5000) {
@@ -283,6 +297,10 @@ async function toggleSiteItems(siteKey, siteSlug, container, btn) {
     try {
       const items = await apiFetch(`/api/sites/${encodeURIComponent(siteKey)}/items`);
       subList.innerHTML = "";
+      if (!items.length) {
+        subList.innerHTML = `<div style="padding:4px 8px; color:var(--text-muted); font-size:11px;">Chưa có file nào trong site này.</div>`;
+        return;
+      }
       items.forEach(it => {
         const b = document.createElement("button");
         b.className = "item-btn";
@@ -292,8 +310,9 @@ async function toggleSiteItems(siteKey, siteSlug, container, btn) {
         b.onclick = () => selectItem(b, it.file_id, it.file_name, it.label);
         subList.appendChild(b);
       });
-    } catch {
-      subList.innerHTML = `<div style="padding:4px 8px; color:var(--red); font-size:11px;">Lỗi tải</div>`;
+    } catch (err) {
+      const message = err?.message || "Lỗi tải";
+      subList.innerHTML = `<div style="padding:4px 8px; color:var(--red); font-size:11px;">${message}</div>`;
     }
   }
 }
@@ -308,6 +327,8 @@ function _resetForms() {
   });
   const contactStatus = $("#contact-status");
   if (contactStatus) contactStatus.value = "Normal";
+  const contactProcessing = $("#contact-processing");
+  if (contactProcessing) contactProcessing.value = "None";
 
   // Reset toan bo Status form
   const statusDept   = $("#status-dept");   if (statusDept)   statusDept.value   = "";
@@ -659,6 +680,41 @@ function _extractTimeFromReport() {
   return "";
 }
 
+function _formatContactRecoveryTime(start, end) {
+  if (!start && !end) return "...";
+  if (!start || !end) return start || end;
+
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  if ([sh, sm, eh, em].some(n => Number.isNaN(n))) return `${start} - ${end}`;
+
+  let totalMinutes = (eh * 60 + em) - (sh * 60 + sm);
+  if (totalMinutes < 0) totalMinutes += 24 * 60;
+  return `(${totalMinutes} phút) ${start} - ${end}`;
+}
+
+function _buildContactText() {
+  const device = $("#contact-device").value.trim();
+  const status = $("#contact-status").value;
+  const processing = $("#contact-processing").value;
+  const timeStart = _getTimePicker("contact-time-start");
+  const timeEnd = _getTimePicker("contact-time-end");
+
+  if (!device) {
+    showToast("Thiếu thông tin", "Vui lòng nhập tên thiết bị.");
+    return null;
+  }
+
+  const timeStr = _formatContactRecoveryTime(timeStart, timeEnd);
+  return (
+    `Dear anh/ chị tại site, em xin phép cập nhập tình trạng thiết bị:\n` +
+    `+ Tên thiết bị liên quan: ${device}\n` +
+    `+ Tình trạng thiết bị: ${status}\n` +
+    `+ Processing Results: ${processing}\n` +
+    `+ Thời gian khắc phục: ${timeStr}`
+  );
+}
+
 function openContactModal() {
   // Mo modal truoc
   openModal("contact");
@@ -676,22 +732,8 @@ function openContactModal() {
   if (btn) {
     btn.onclick = null;
     btn.onclick = () => {
-      const device    = $("#contact-device").value.trim();
-      const status    = $("#contact-status").value;
-      const timeStart = _getTimePicker("contact-time-start");
-      const timeEnd   = _getTimePicker("contact-time-end");
-
-      if (!device) { showToast("Thiếu thông tin", "Vui lòng nhập tên thiết bị."); return; }
-
-      const timeStr = timeStart && timeEnd
-        ? `${timeStart} - ${timeEnd}`
-        : timeStart || timeEnd || "...";
-
-      const text =
-        `Dear anh/ chị tại site, em xin phép cập nhập tình trạng thiết bị:\n` +
-        `+ Tên thiết bị liên quan: ${device}\n` +
-        `+ Tình trạng thiết bị: ${status}\n` +
-        `+ Thời gian khắc phục: ${timeStr}`;
+      const text = _buildContactText();
+      if (!text) return;
 
       setOutputText(text);
       fillBox(1);
@@ -703,22 +745,8 @@ function openContactModal() {
 
 function bindContactModal() {
   $("#contact-submit").onclick = () => {
-    const device    = $("#contact-device").value.trim();
-    const status    = $("#contact-status").value;
-    const timeStart = _getTimePicker("contact-time-start");
-    const timeEnd   = _getTimePicker("contact-time-end");
-
-    if (!device) { showToast("Thiếu thông tin", "Vui lòng nhập tên thiết bị."); return; }
-
-    const timeStr = timeStart && timeEnd
-      ? `${timeStart} - ${timeEnd}`
-      : timeStart || timeEnd || "...";
-
-    const text =
-      `Dear anh/ chị tại site, em xin phép cập nhập tình trạng thiết bị:\n` +
-      `+ Tên thiết bị liên quan: ${device}\n` +
-      `+ Tình trạng thiết bị: ${status}\n` +
-      `+ Thời gian khắc phục: ${timeStr}`;
+    const text = _buildContactText();
+    if (!text) return;
 
     setOutputText(text);
     fillBox(1);

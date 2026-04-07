@@ -55,7 +55,7 @@ def remove_note(stt: int):
     from config import NOTE_ARCHIVE_DIR
 
     fpath = os.path.join(NOTE_ARCHIVE_DIR, f"reminders{stt}.json")
-    if delete_note(fpath):
+    if delete_note(fpath, stt=stt, note_tag=f"note:{stt}"):
         return jsonify({"deleted": stt})
     return jsonify({"error": f"Không tìm thấy note {stt}"}), 404
 

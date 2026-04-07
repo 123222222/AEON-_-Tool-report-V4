@@ -6,9 +6,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Mount thư mục data từ máy host vào container
-      # Đổi D:/RMC_Assistant_ver1.1 thành đường dẫn thực trên máy bạn
-      - D:/RMC_Assistant_ver1.1:/data
+      # Mount thư mục data từ máy host vào container.
+      # Có thể override bằng biến DATA_DIR trong file .env (ví dụ máy B).
+      - "${DATA_DIR:-D:/RMC_Assistant_ver1.1}:/data"
     environment:
       # Override đường dẫn data về /data trong container
       - RMC_BASE_DIR=/data
@@ -23,6 +23,14 @@ services:
       - MS_OAUTH_TENANT_ID=${MS_OAUTH_TENANT_ID:-}
       - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-}
       - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET:-}
+
+      # Slack webhooks by site key
+      - SLACK_WEBHOOK_DEFAULT=${SLACK_WEBHOOK_DEFAULT:-}
+      - SLACK_WEBHOOK_ABDNC=${SLACK_WEBHOOK_ABDNC:-}
+      - SLACK_WEBHOOK_AMDR=${SLACK_WEBHOOK_AMDR:-}
+      - SLACK_WEBHOOK_ANVL=${SLACK_WEBHOOK_ANVL:-}
+      - SLACK_WEBHOOK_ATQB=${SLACK_WEBHOOK_ATQB:-}
+      - SLACK_WEBHOOK_AVG=${SLACK_WEBHOOK_AVG:-}
       # Azure AD (tuỳ chọn — nếu muốn override)
       # - AZURE_CLIENT_ID=ac4edccf-a8ee-41aa-bcc4-6603c4bebae1
       # - AZURE_TENANT_ID=5983a1d2-f46b-492d-a9b3-7e2f3609d20b

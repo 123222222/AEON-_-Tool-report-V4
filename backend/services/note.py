@@ -28,6 +28,29 @@ def _start_schedule_runner():
     threading.Thread(target=run, daemon=True).start()
 
 
+def _note_tag(note: dict | None = None, stt: int | None = None) -> str:
+    if note is not None:
+        if note.get("_tag"):
+            return note["_tag"]
+        if note.get("_stt") is not None:
+            return f"note:{note['_stt']}"
+    if stt is not None:
+        return f"note:{stt}"
+    return "note:unknown"
+
+
+def _cancel_note_schedules(tag: str) -> None:
+    schedule.clear(tag)
+
+
+def _purge_pending_notifications(tag: str) -> None:
+    with _notifications_lock:
+        _pending_notifications[:] = [
+            item for item in _pending_notifications
+            if item.get("note_tag") != tag
+        ]
+
+
 # ---------------------------------------------------------------
 def _get_next_stt() -> int:
     used = []
@@ -60,6 +83,7 @@ def load_all_notes() -> list:
             if isinstance(data, dict) and "keyword" in data:
                 data["_file"] = fpath
                 data["_stt"]  = int(fname.replace("reminders", "").replace(".json", ""))
+                data["_tag"]  = _note_tag(data)
                 if "delete_mode" not in data:
                     data["delete_mode"] = "delete"
                 if "done" not in data:
@@ -94,17 +118,25 @@ def create_note(keyword: str, content: str, times: list, days: list,
 
     data["_file"] = fpath
     data["_stt"]  = stt
+    data["_tag"]  = _note_tag(stt=stt)
 
     schedule_note(data)
     return data
 
 
-def delete_note(file_path: str) -> bool:
-    """Xóa file note."""
+def delete_note(file_path: str, stt: int | None = None, note_tag: str | None = None) -> bool:
+    """Xóa file note và hủy toàn bộ lịch liên quan."""
+    tag = note_tag or _note_tag(stt=stt)
     try:
+        had_schedules = bool(tag and tag != "note:unknown" and schedule.get_jobs(tag))
+        if tag and tag != "note:unknown":
+            _cancel_note_schedules(tag)
+            _purge_pending_notifications(tag)
+        removed_file = False
         if os.path.exists(file_path):
             os.remove(file_path)
-            return True
+            removed_file = True
+        return removed_file or had_schedules
     except Exception as e:
         print(f"❌ Xóa note lỗi: {e}")
     return False
@@ -122,6 +154,7 @@ def schedule_note(note: dict):
     mode        = note["mode"]
     delete_mode = note.get("delete_mode", "delete")
     file_path   = note.get("_file")
+    note_tag    = _note_tag(note)
 
     # Convert time tu UTC+7 sang UTC de schedule dung gio
     def to_utc(t_str):
@@ -148,6 +181,7 @@ def schedule_note(note: dict):
                         "keyword": keyword,
                         "content": content,
                         "time":    t,
+                        "note_tag": note_tag,
                     })
 
                 if mode == "1 lần":
@@ -167,7 +201,7 @@ def schedule_note(note: dict):
 
             return job
 
-        schedule.every().day.at(t_utc).do(make_job())
+        schedule.every().day.at(t_utc).tag(note_tag).do(make_job())
 
 
 def get_pending_notifications() -> list:
