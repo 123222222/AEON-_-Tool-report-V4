@@ -8,6 +8,7 @@ import datetime
 import tempfile
 import requests
 import base64
+import re
 import openpyxl
 
 from auth import graph_session
@@ -17,7 +18,13 @@ EXCEL_SHARE_LINK = (
     "/IQC4QAqLtp-mRqWCS_v596O8AXny2kJRSp6KVHCbb8knAb0?e=stWUfd"
 )
 
+CHART_EXCEL_SHARE_LINK = (
+    "https://aeondelight-my.sharepoint.com/:x:/g/personal/phuc_nguyen_aeondelight_biz"
+    "/IQDuEpUv8wt0T70HClrX1zROAeitk0A9LPQb-2YSc2fm9CA?e=N35nOA"
+)
+
 _excel_cache: dict = {"drive_id": None, "item_id": None}
+_chart_excel_cache: dict = {"drive_id": None, "item_id": None}
 
 
 def _log(msg):
@@ -25,12 +32,16 @@ def _log(msg):
     sys.stdout.flush()
 
 
-def _resolve_excel_item():
-    if _excel_cache["drive_id"] and _excel_cache["item_id"]:
-        return _excel_cache["drive_id"], _excel_cache["item_id"]
+def _resolve_excel_item(share_link: str = EXCEL_SHARE_LINK, cache: dict = None):
+    if cache is None:
+        cache = _excel_cache
+
+    if cache["drive_id"] and cache["item_id"]:
+        return cache["drive_id"], cache["item_id"]
+
     token   = graph_session.ensure_token()
     headers = {"Authorization": f"Bearer {token}"}
-    encoded = base64.b64encode(EXCEL_SHARE_LINK.encode("utf-8")).decode("utf-8")
+    encoded = base64.b64encode(share_link.encode("utf-8")).decode("utf-8")
     encoded = encoded.rstrip("=").replace("/", "_").replace("+", "-")
     r = requests.get(
         f"https://graph.microsoft.com/v1.0/shares/u!{encoded}/driveItem",
@@ -39,9 +50,18 @@ def _resolve_excel_item():
     if r.status_code != 200:
         raise Exception(f"Khong resolve duoc file Excel: {r.status_code} {r.text[:200]}")
     data = r.json()
-    _excel_cache["drive_id"] = data["parentReference"]["driveId"]
-    _excel_cache["item_id"]  = data["id"]
-    return _excel_cache["drive_id"], _excel_cache["item_id"]
+    cache["drive_id"] = data["parentReference"]["driveId"]
+    cache["item_id"]  = data["id"]
+    return cache["drive_id"], cache["item_id"]
+
+
+def _to_int(value):
+    try:
+        if value is None or value == "":
+            return 0
+        return int(float(value))
+    except Exception:
+        return 0
 
 
 def _download_excel(drive_id: str, item_id: str) -> str:
@@ -60,6 +80,30 @@ def _download_excel(drive_id: str, item_id: str) -> str:
     r2  = requests.get(download_url, stream=True)
     for chunk in r2.iter_content(8192):
         tmp.write(chunk)
+    tmp.close()
+    return tmp.name
+
+
+def _download_public_sharepoint_excel(share_link: str) -> str:
+    """
+    Download workbook directly from a public SharePoint sharing page.
+    This avoids Graph auth for read-only chart rendering.
+    """
+    page = requests.get(share_link, timeout=30)
+    if page.status_code != 200:
+        raise Exception(f"Khong mo duoc share page: {page.status_code}")
+
+    match = re.search(r'"FileGetUrl":"([^"]+)"', page.text)
+    if not match:
+        raise Exception("Khong tim thay FileGetUrl trong share page")
+
+    file_url = match.group(1).replace('\\u0026', '&')
+    download = requests.get(file_url, timeout=60)
+    if download.status_code != 200:
+        raise Exception(f"Khong tai duoc file Excel: {download.status_code}")
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    tmp.write(download.content)
     tmp.close()
     return tmp.name
 
@@ -307,6 +351,80 @@ def get_excel_data() -> list:
             })
             
         return data
+    finally:
+        if os.path.exists(local_path):
+            os.unlink(local_path)
+
+
+def get_site_chart_data() -> dict:
+    """
+    Doc du lieu tu workbook chart moi, sheet SITE_DATA.
+    Tra ve summary + danh sach site theo week de frontend ve bieu do.
+    """
+    local_path = _download_public_sharepoint_excel(CHART_EXCEL_SHARE_LINK)
+
+    try:
+        wb = openpyxl.load_workbook(local_path, data_only=True)
+        if "SITE_DATA" not in wb.sheetnames:
+            raise Exception("Khong tim thay sheet SITE_DATA")
+
+        ws = wb["SITE_DATA"]
+
+        header_row = None
+        for row in range(1, ws.max_row + 1):
+            a_val = str(ws.cell(row=row, column=1).value or "").strip().upper()
+            b_val = str(ws.cell(row=row, column=2).value or "").strip().upper()
+            if a_val == "SITE NAME" and b_val == "CODE SITE":
+                header_row = row
+                break
+
+        start_row = (header_row + 1) if header_row else 10
+        sites = []
+
+        for row in range(start_row, ws.max_row + 1):
+            site_name = ws.cell(row=row, column=1).value
+            code_site = ws.cell(row=row, column=2).value
+
+            if site_name is None and code_site is None:
+                continue
+
+            site_name_text = str(site_name or "").strip()
+            code_site_text = str(code_site or "").strip()
+
+            if not site_name_text:
+                continue
+            if site_name_text.upper() == "SITE NAME":
+                continue
+
+            weeks = [_to_int(ws.cell(row=row, column=col).value) for col in range(3, 8)]
+            total = _to_int(ws.cell(row=row, column=8).value)
+            if total == 0:
+                total = sum(weeks)
+
+            sites.append({
+                "site_name": site_name_text.upper(),
+                "code_site": code_site_text,
+                "weeks": weeks,
+                "total": total,
+            })
+
+        week_totals = [sum(site["weeks"][idx] for site in sites) for idx in range(5)]
+        overall_total = sum(site["total"] for site in sites)
+
+        return {
+            "summary": {
+                "week_totals": {
+                    "week1": week_totals[0],
+                    "week2": week_totals[1],
+                    "week3": week_totals[2],
+                    "week4": week_totals[3],
+                    "week5": week_totals[4],
+                },
+                "overall_total": overall_total,
+            },
+            "sites": sites,
+            "week_labels": ["WEEK 1", "WEEK 2", "WEEK 3", "WEEK 4", "WEEK 5"],
+        }
     finally:
         if os.path.exists(local_path):
             os.unlink(local_path)

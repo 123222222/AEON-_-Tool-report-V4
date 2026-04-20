@@ -7,36 +7,42 @@
   <link rel="stylesheet" href="assets/style.css">
   <style>
     body {
-      background: #0f172a;
-      color: #f8fafc;
+      background: #ffffff;
+      color: #0f172a;
       margin: 0;
       padding: 10px;
       height: 100vh;
       overflow: hidden;
-      font-family: sans-serif;
+      font-family: Arial, Helvetica, sans-serif;
     }
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(2, 1fr);
+      grid-template-columns: 1.05fr 1fr 1fr;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
       gap: 15px;
       height: calc(100vh - 60px);
       width: 100%;
     }
     .chart-box {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: #ffffff;
+      border: 1px solid #b9d7f2;
       border-radius: 12px;
       padding: 10px;
       display: flex;
       flex-direction: column;
       position: relative;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    }
+    .chart-box.total-box {
+      grid-row: 1 / span 2;
     }
     .chart-box h3 {
       margin: 0 0 10px 0;
       font-size: 14px;
       text-align: center;
-      color: #38bdf8;
+      color: #065795;
+      /* color: #065795; */
+      font-weight: 700;
     }
     .chart-canvas-wrapper {
       flex: 1;
@@ -52,54 +58,54 @@
     .header h1 {
       margin: 0;
       font-size: 18px;
+      color: #0f172a;
     }
     .btn-back {
       padding: 6px 15px;
-      background: #334155;
-      color: white;
+      /* background: #1d7fd1;  */
+      background: #a22303;
+      color: #ffffff;
       border: none;
       border-radius: 6px;
       cursor: pointer;
+      box-shadow: 0 2px 6px rgba(29, 127, 209, 0.25);
     }
     /* Empty box style */
     .empty-box {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #475569;
+      color: #64748b;
         font-style: italic;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>📊 THỐNG KÊ LỖI THIẾT BỊ - 5 SITE AEON</h1>
+    <h1> ALARM ALL SITE</h1>
     <button class="btn-back" onclick="window.close(); if(window.opener){window.opener.focus();} else {window.history.back();}">Đóng / Quay lại</button>
   </div>
 
   <div class="charts-grid">
-    <div class="chart-box">
-      <h3>AEON Nguyễn Văn Linh</h3>
-      <div class="chart-canvas-wrapper"><canvas id="chart-anvl"></canvas></div>
+    <div class="chart-box total-box">
+      <h3>ALARM TOTAL (YTD)</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-total"></canvas></div>
     </div>
     <div class="chart-box">
-      <h3>AEON Tạ Quang Bửu</h3>
-      <div class="chart-canvas-wrapper"><canvas id="chart-atqb"></canvas></div>
+      <h3>WEEK 1</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-week1"></canvas></div>
     </div>
     <div class="chart-box">
-      <h3>AEON Bình Dương NC</h3>
-      <div class="chart-canvas-wrapper"><canvas id="chart-abdnc"></canvas></div>
+      <h3>WEEK 2</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-week2"></canvas></div>
     </div>
     <div class="chart-box">
-      <h3>AEON Văn Giang</h3>
-      <div class="chart-canvas-wrapper"><canvas id="chart-avg"></canvas></div>
+      <h3>WEEK 3</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-week3"></canvas></div>
     </div>
     <div class="chart-box">
-      <h3>AEON Midori</h3>
-      <div class="chart-canvas-wrapper"><canvas id="chart-amdr"></canvas></div>
-    </div>
-    <div class="chart-box empty-box">
-      RMC Assistant Dashboard
+      <h3>WEEK 4</h3>
+      <div class="chart-canvas-wrapper"><canvas id="chart-week4"></canvas></div>
     </div>
   </div>
 
@@ -123,70 +129,85 @@
     }
 
     function renderAll(data) {
-      const sites = {
-        "AEON Nguyen Van Linh": "chart-anvl",
-        "AEON Ta Quang Buu":    "chart-atqb",
-        "AEON Binh Duong NC":   "chart-abdnc",
-        "AEON Van Giang":       "chart-avg",
-        "AEON Midori":          "chart-amdr"
-      };
+      const sites = Array.isArray(data.sites) ? data.sites : [];
+      const summary = data.summary || {};
+      const weekTotals = summary.week_totals || {};
+      // const blueColor = '#1f77b4';
+      const darkBlueColor = '#065795';
 
-      Object.entries(sites).forEach(([siteName, canvasId]) => {
+      const renderBarChart = (canvasId, labels, values, options = {}) => {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        
-        const siteData = data[siteName] || [];
-        const months = siteData.map(d => d.month);
-        
-        const allDevices = new Set();
-        siteData.forEach(d => {
-          Object.keys(d.devices).forEach(dev => allDevices.add(dev));
-        });
-        
-        const datasets = Array.from(allDevices).map((device, index) => {
-          const counts = siteData.map(d => d.devices[device] || 0);
-          const color = `hsl(${(index * 137.5) % 360}, 70%, 65%)`;
-          
-          return {
-            label: device,
-            data: counts,
-            backgroundColor: color,
-            borderColor: color,
-            borderWidth: 1
-          };
-        });
 
         chartInstances[canvasId] = new Chart(ctx, {
           type: 'bar',
-          data: { labels: months, datasets: datasets },
+          data: {
+            labels,
+            datasets: [{
+              label: options.label || '',
+              data: values,
+              backgroundColor: options.backgroundColor || darkBlueColor,
+              borderColor: options.borderColor || darkBlueColor,
+              borderWidth: 1
+            }]
+          },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
               legend: {
+                display: options.showLegend ?? false,
                 position: 'bottom',
-                labels: { boxWidth: 10, color: '#94a3b8', font: { size: 10 } }
-              }
+                labels: { boxWidth: 10, color: '#64748b', font: { size: 10 } }
+              },
+              tooltip: { enabled: true }
             },
             scales: {
               y: {
                 beginAtZero: true,
-                ticks: { color: '#94a3b8', stepSize: 1 },
-                grid: { color: 'rgba(255,255,255,0.05)' }
+                ticks: { color: '#64748b', stepSize: 1 },
+                grid: { color: 'rgba(148, 163, 184, 0.22)' },
+                border: { color: 'rgba(148, 163, 184, 0.35)' }
               },
               x: {
-                ticks: { color: '#94a3b8' },
-                grid: { color: 'rgba(255,255,255,0.05)' }
+                ticks: {
+                  color: '#64748b',
+                  callback: function(value) {
+                    const label = this.getLabelForValue(value);
+                    return String(label).split(' ');
+                  }
+                },
+                grid: { color: 'rgba(148, 163, 184, 0.14)' },
+                border: { color: 'rgba(148, 163, 184, 0.35)' }
               }
             }
           }
+        });
+      };
+
+      renderBarChart(
+        'chart-total',
+        ['OVERALL'],
+        [summary.overall_total || 0],
+        { label: 'All Sites', backgroundColor: darkBlueColor, borderColor: darkBlueColor, showLegend: true }
+      );
+
+      [0, 1, 2, 3].forEach((index) => {
+        const canvasId = `chart-week${index + 1}`;
+        const values = sites.map(site => site.weeks?.[index] ?? 0);
+        const labels = sites.map(site => site.site_name || site.code_site || '');
+        renderBarChart(canvasId, labels, values, {
+          label: `WEEK ${index + 1}`,
+          backgroundColor: darkBlueColor,
+          borderColor: darkBlueColor,
+          showLegend: false
         });
       });
     }
 
     initCharts();
-    setInterval(initCharts, 2 * 60 * 1000); // Tự động làm mới sau mỗi 2 phút
+    setInterval(initCharts, 30 * 60 * 1000); // Tự động làm mới sau mỗi 30 phút
   </script>
 </body>
 </html>

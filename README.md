@@ -65,6 +65,10 @@ GOOGLE_OAUTH_CLIENT_SECRET=...
 # Secret key cho Flask session
 APP_SECRET_KEY=your-random-secret
 
+# Public URL cho OAuth callback (đi qua tunnel)
+# Ví dụ: https://abc-def.trycloudflare.com
+PUBLIC_BASE_URL=
+
 # Hard admin account(s), phân tách bằng dấu phẩy
 ADMIN_EMAILS=dung.ho@aeondelight.biz
 
@@ -74,6 +78,35 @@ BASE_SHARE_LINK=https://aeondelight-my.sharepoint.com/...
 # Thư mục lưu trữ local (mặc định D:\RMC_Assistant_ver1.1)
 RMC_BASE_DIR=D:\RMC_Assistant_ver1.1
 ```
+
+### 2.1 Chạy tunnel Cloudflare (thay cho ngrok)
+
+1. Cài cloudflared (Windows):
+
+```powershell
+winget install --id Cloudflare.cloudflared --exact --force --accept-package-agreements --accept-source-agreements
+```
+
+2. Mở tunnel tới app local `localhost:5000`:
+
+```powershell
+& 'C:\Program Files (x86)\cloudflared\cloudflared.exe' tunnel --url http://localhost:5000 --no-autoupdate
+```
+
+3. Copy URL `https://*.trycloudflare.com` mà cloudflared in ra, sau đó cập nhật vào `.env`:
+
+```env
+PUBLIC_BASE_URL=https://your-subdomain.trycloudflare.com
+```
+
+4. Cập nhật OAuth Redirect URI trong Azure/Google:
+
+```text
+https://your-subdomain.trycloudflare.com/api/auth/callback/microsoft
+https://your-subdomain.trycloudflare.com/api/auth/callback/google
+```
+
+Lưu ý: Quick tunnel đổi domain mỗi lần chạy lại, nên nếu domain đổi bạn cần cập nhật lại `PUBLIC_BASE_URL` và redirect URI tương ứng.
 
 ### 3. Chạy backend
 

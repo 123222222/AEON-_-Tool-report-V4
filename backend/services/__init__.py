@@ -5,4 +5,4 @@ from .report    import (get_report_text, fill_contact_template,
                         get_report_files_for_site)
 from .note      import (load_all_notes, create_note, delete_note,
                         get_pending_notifications, reload_all_schedules)
-from .excel     import append_status_to_excel, get_excel_data
+from .excel     import append_status_to_excel, get_excel_data, get_site_chart_data
